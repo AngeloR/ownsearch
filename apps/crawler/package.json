@@ -1,0 +1,23 @@
+{
+  "name": "@surface/crawler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -w -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "crawlee": "^3.15.2",
+    "ioredis": "^5.8.2",
+    "jsdom": "^27.0.1"
+  }
+}
