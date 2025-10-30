@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import fastifyCors from "@fastify/cors";
 
 import { HOST, PORT } from "./config.js";
 import { closePool } from "./db.js";
@@ -7,6 +8,10 @@ import searchRoutes from "./routes/search.js";
 export function buildServer() {
   const app = Fastify({
     logger: true,
+  });
+
+  app.register(fastifyCors, {
+    origin: true,
   });
 
   app.register(searchRoutes);

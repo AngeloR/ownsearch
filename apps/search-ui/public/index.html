@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Surface Search</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="hero">
+        <h1>Surface Search</h1>
+        <p class="tagline">Explore crawled knowledge with hybrid semantic search.</p>
+      </section>
+
+      <form id="search-form" class="search-bar">
+        <input
+          id="search-input"
+          type="search"
+          name="q"
+          placeholder="Search indexed documents..."
+          autocomplete="off"
+          aria-label="Search query"
+        />
+        <button id="search-button" type="submit">Search</button>
+      </form>
+
+      <section id="results" class="results" aria-live="polite">
+        <p class="empty-state">Enter a search term to see results.</p>
+      </section>
+    </main>
+
+    <script type="module" src="./assets/index.js"></script>
+  </body>
+</html>
