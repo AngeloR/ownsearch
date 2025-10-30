@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
 
-import { HOST, PORT } from "./config.js";
+import { HOST, PORT, ROUTE_PREFIX } from "./config.js";
 import { closePool } from "./db.js";
 import searchRoutes from "./routes/search.js";
 
@@ -14,7 +14,11 @@ export function buildServer() {
     origin: true,
   });
 
-  app.register(searchRoutes);
+  if (ROUTE_PREFIX) {
+    app.register(searchRoutes, { prefix: ROUTE_PREFIX });
+  } else {
+    app.register(searchRoutes);
+  }
 
   app.addHook("onClose", async () => {
     await closePool();

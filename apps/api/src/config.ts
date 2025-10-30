@@ -1,7 +1,7 @@
 import process from "node:process";
 
 export const HOST = process.env.HOST ?? "0.0.0.0";
-export const PORT = Number.parseInt(process.env.PORT ?? "8888", 10);
+export const PORT = Number.parseInt(process.env.PORT ?? "8000", 10);
 
 export const DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -20,3 +20,20 @@ export const RESULT_LIMIT = Number.parseInt(
   process.env.RESULT_LIMIT ?? "10",
   10,
 );
+
+function normalizeRoutePrefix(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "/") {
+    return undefined;
+  }
+  const withoutTrailing = trimmed.replace(/\/+$/, "");
+  if (!withoutTrailing) {
+    return undefined;
+  }
+  return withoutTrailing.startsWith("/")
+    ? withoutTrailing
+    : `/${withoutTrailing}`;
+}
+
+export const ROUTE_PREFIX = normalizeRoutePrefix(process.env.ROUTE_PREFIX);

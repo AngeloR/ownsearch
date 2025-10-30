@@ -1,12 +1,16 @@
-import { JSDOM } from "jsdom";
 import { CheerioCrawler } from "crawlee";
+import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import { Redis as RedisClient } from "ioredis";
 import process from "node:process";
 
-const REDIS_URL = "redis://localhost:6379";
-const REDIS_QUEUE_KEY = "crawler:queue";
-const REDIS_DOC_PREFIX = "crawler:doc";
+const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
+const REDIS_QUEUE_KEY = process.env.REDIS_QUEUE_KEY ?? "crawler:queue";
+const REDIS_DOC_PREFIX = process.env.REDIS_DOC_PREFIX ?? "crawler:doc";
+const MAX_REQUESTS_PER_CRAWL = Number.parseInt(
+  process.env.MAX_REQUESTS_PER_CRAWL ?? "100",
+  10
+);
 
 function ensureValidUrl(url: string): URL {
   try {
@@ -46,7 +50,7 @@ async function runCrawler(startUrl: string): Promise<void> {
   let pageCounter = 0;
 
   const crawler = new CheerioCrawler({
-    maxRequestsPerCrawl: 100,
+    maxRequestsPerCrawl: Number.isFinite(MAX_REQUESTS_PER_CRAWL) ? MAX_REQUESTS_PER_CRAWL : 100,
     async requestHandler({ request, body, enqueueLinks, log }) {
       if (!body) {
         log.warning(`No body returned for ${request.url}, skipping.`);
@@ -95,9 +99,13 @@ async function runCrawler(startUrl: string): Promise<void> {
 }
 
 export async function main(): Promise<void> {
-  const [, , startUrl] = process.argv;
+  const [, , argUrl] = process.argv;
+  const startUrl = argUrl ?? process.env.START_URL;
+
   if (!startUrl) {
-    console.error("Usage: pnpm --filter @surface/crawler start <url>");
+    console.error(
+      "Missing start URL. Provide via CLI argument or START_URL environment variable."
+    );
     process.exitCode = 1;
     return;
   }

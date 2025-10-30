@@ -3,19 +3,108 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     networks:
       - data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   pgvector:
     image: ankane/pgvector
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
     ports:
-      - "5432:5432"
+      - "${PGVECTOR_HOST_PORT:-5431}:5432"
+    networks:
+      - data
+    healthcheck:
+      test: [
+        "CMD-SHELL",
+        "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"
+      ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      pgvector:
+        condition: service_healthy
+    environment:
+      HOST: ${API_HOST:-0.0.0.0}
+      PORT: ${API_PORT:-8000}
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@pgvector:5432/postgres}
+      EMBEDDING_DIMENSIONS: ${API_EMBEDDING_DIMENSIONS:-384}
+      TEXT_WEIGHT: ${API_TEXT_WEIGHT:-0.6}
+      VECTOR_WEIGHT: ${API_VECTOR_WEIGHT:-0.4}
+      RESULT_LIMIT: ${API_RESULT_LIMIT:-10}
+      ROUTE_PREFIX: ${API_ROUTE_PREFIX:-/api}
+    ports:
+      - "${API_HOST_PORT:-8000}:${API_PORT:-8000}"
+    restart: unless-stopped
+    networks:
+      - data
+
+  crawler:
+    build:
+      context: .
+      dockerfile: apps/crawler/Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      START_URL: ${CRAWLER_START_URL:-https://example.com}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_QUEUE_KEY: ${CRAWLER_REDIS_QUEUE_KEY:-crawler:queue}
+      REDIS_DOC_PREFIX: ${CRAWLER_REDIS_DOC_PREFIX:-crawler:doc}
+      MAX_REQUESTS_PER_CRAWL: ${CRAWLER_MAX_REQUESTS:-100}
+    restart: unless-stopped
+    networks:
+      - data
+
+  indexer:
+    build:
+      context: .
+      dockerfile: apps/indexer/Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgvector:
+        condition: service_healthy
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_QUEUE_KEY: ${INDEXER_REDIS_QUEUE_KEY:-crawler:queue}
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@pgvector:5432/postgres}
+      EMBEDDING_DIMENSIONS: ${INDEXER_EMBEDDING_DIMENSIONS:-384}
+      CHUNK_SIZE: ${INDEXER_CHUNK_SIZE:-200}
+      CHUNK_OVERLAP: ${INDEXER_CHUNK_OVERLAP:-40}
+    restart: unless-stopped
+    networks:
+      - data
+
+  search-ui:
+    build:
+      context: .
+      dockerfile: apps/search-ui/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      API_BASE_URL: ${SEARCH_UI_API_BASE_URL:-/api}
+    ports:
+      - "${SEARCH_UI_HOST_PORT:-8080}:80"
+    restart: unless-stopped
     networks:
       - data
 
