@@ -81,6 +81,11 @@ Response excerpt:
 }
 ```
 
+Score fields:
+- `score`: final relevance used to order results; it blends text and vector components according to `TEXT_WEIGHT` / `VECTOR_WEIGHT`.
+- `textScore`: raw PostgreSQL `ts_rank` value showing how well the document text matches the query terms.
+- `vectorScore`: cosine similarity from pgvector (`1 - (embedding <=> query_vec)`), indicating closeness of the embeddings.
+
 ### Enqueueing new crawl seeds
 
 ```bash
