@@ -1,4 +1,4 @@
-# @surface/api
+# @ownsearch/api
 
 The API exposes a Fastify-based search endpoint that blends full-text relevance
 (`ts_rank`) with vector similarity from `pgvector`. Clients query `/search?q=...`
@@ -32,7 +32,7 @@ and receive ranked documents with snippet, aggregate score, and scoring breakdow
 
 ```bash
 pnpm install
-pnpm --filter @surface/api build
+pnpm --filter @ownsearch/api build
 ```
 
 ### Running the API
@@ -42,7 +42,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5431/postgres \
 REDIS_URL=redis://localhost:6379 \
 REDIS_SEED_QUEUE=crawler:seeds \
 ROUTE_PREFIX=/api \
-pnpm --filter @surface/api start
+pnpm --filter @ownsearch/api start
 ```
 
 With default settings the API listens at <http://localhost:8000/api/search>.
@@ -52,7 +52,7 @@ With default settings the API listens at <http://localhost:8000/api/search>.
 Use `tsc` watch output for rapid iteration:
 
 ```bash
-pnpm --filter @surface/api dev
+pnpm --filter @ownsearch/api dev
 ```
 
 ### Querying
@@ -96,7 +96,7 @@ same queue and will begin a new crawl cycle shortly after.
 ### Adding dependencies
 
 ```bash
-pnpm add <package> --filter @surface/api
+pnpm add <package> --filter @ownsearch/api
 ```
 
 ## Implementation Notes

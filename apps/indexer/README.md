@@ -1,4 +1,4 @@
-# @surface/indexer
+# @ownsearch/indexer
 
 The indexer drains the crawler’s Redis queue, stores full documents in PostgreSQL,
 breaks content into overlapping chunks, generates deterministic embeddings, and
@@ -34,14 +34,14 @@ All values can be exported whenever you run the service (`pnpm` commands shown b
 
 ```bash
 pnpm install
-pnpm --filter @surface/indexer build
+pnpm --filter @ownsearch/indexer build
 ```
 
 ### Run migrations
 
 ```bash
 DATABASE_URL=postgres://postgres:postgres@localhost:5431/postgres \
-pnpm --filter @surface/indexer migrate
+pnpm --filter @ownsearch/indexer migrate
 ```
 
 This creates the `documents` and `document_chunks` tables and enables the `uuid-ossp`
@@ -52,7 +52,7 @@ and `vector` extensions (idempotent).
 ```bash
 REDIS_URL=redis://localhost:6379 \
 DATABASE_URL=postgres://postgres:postgres@localhost:5431/postgres \
-pnpm --filter @surface/indexer start
+pnpm --filter @ownsearch/indexer start
 ```
 
 Logs display the number of chunks generated per document. To inspect the database:
@@ -65,7 +65,7 @@ SELECT COUNT(*) FROM document_chunks;
 ### Watching for changes
 
 ```bash
-pnpm --filter @surface/indexer dev
+pnpm --filter @ownsearch/indexer dev
 ```
 
 ### Consuming new dependencies
@@ -73,7 +73,7 @@ pnpm --filter @surface/indexer dev
 Install workspace dependencies from the monorepo root:
 
 ```bash
-pnpm add <package> --filter @surface/indexer
+pnpm add <package> --filter @ownsearch/indexer
 ```
 
 ## Operational Notes

@@ -1,4 +1,4 @@
-# @surface/crawler
+# @ownsearch/crawler
 
 The crawler ingests seed URLs, follows same-domain links with
 [Crawlee](https://crawlee.dev/), extracts clean article content using Mozilla’s
@@ -39,7 +39,7 @@ All options can be supplied via environment variables (defaults shown):
 pnpm install
 
 # build the TypeScript sources
-pnpm --filter @surface/crawler build
+pnpm --filter @ownsearch/crawler build
 ```
 
 ### Running the crawler directly
@@ -48,13 +48,13 @@ pnpm --filter @surface/crawler build
 START_URL=https://example.com \
 REDIS_URL=redis://localhost:6379 \
 REDIS_SEED_QUEUE=crawler:seeds \
-pnpm --filter @surface/crawler start
+pnpm --filter @ownsearch/crawler start
 ```
 
 Or pass the URL as an argument:
 
 ```bash
-pnpm --filter @surface/crawler start https://example.com
+pnpm --filter @ownsearch/crawler start https://example.com
 ```
 
 The script logs saved Redis keys and queue operations. Use `redis-cli lrange crawler:queue 0 -1`
@@ -72,7 +72,7 @@ curl -X POST "http://localhost:8000/api/crawl" \
 For iterative development, rebuild on change:
 
 ```bash
-pnpm --filter @surface/crawler dev
+pnpm --filter @ownsearch/crawler dev
 ```
 
 ### Testing new dependencies
@@ -80,7 +80,7 @@ pnpm --filter @surface/crawler dev
 Because the project uses pnpm workspaces, run installs from the workspace root:
 
 ```bash
-pnpm add <pkg> --filter @surface/crawler
+pnpm add <pkg> --filter @ownsearch/crawler
 ```
 
 ## Architecture Notes

@@ -15,7 +15,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN pnpm --filter @surface/search-ui build
+RUN pnpm --filter @ownsearch/search-ui build
 
 FROM nginx:1.27-alpine AS runner
 COPY --from=builder /app/apps/search-ui/dist /usr/share/nginx/html

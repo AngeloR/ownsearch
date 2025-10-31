@@ -15,7 +15,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN pnpm --filter @surface/indexer build
+RUN pnpm --filter @ownsearch/indexer build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -28,7 +28,7 @@ COPY apps/crawler/package.json apps/crawler/
 COPY apps/indexer/package.json apps/indexer/
 COPY apps/search-ui/package.json apps/search-ui/
 
-RUN pnpm install --filter @surface/indexer --prod --frozen-lockfile
+RUN pnpm install --filter @ownsearch/indexer --prod --frozen-lockfile
 
 COPY --from=builder /app/apps/indexer/dist apps/indexer/dist
 

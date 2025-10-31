@@ -1,6 +1,6 @@
-# Surface Platform
+# Ownsearch Platform
 
-Surface is a small end‑to‑end content discovery stack. It crawls seed URLs, stores
+Ownsearch is a small end‑to‑end content discovery stack. It crawls seed URLs, stores
 structured articles, generates vector embeddings, exposes a hybrid semantic search
 API, and presents a minimalist search UI. The entire system can be launched in
 containers with a single command.
@@ -17,7 +17,7 @@ containers with a single command.
 
    ```bash
    git clone <repo-url>
-   cd surface
+   cd ownsearch
    ```
 
 2. **Create an environment file**

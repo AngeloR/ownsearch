@@ -1,4 +1,4 @@
-# @surface/search-ui
+# @ownsearch/search-ui
 
 The search UI is a static HTML/CSS/TypeScript front-end served via nginx (in
 production) or esbuild’s dev server (during development). It renders a single-page
@@ -33,7 +33,7 @@ pnpm install
 
 ```bash
 API_BASE_URL=http://localhost:8000/api \
-pnpm --filter @surface/search-ui dev
+pnpm --filter @ownsearch/search-ui dev
 ```
 
 This command launches esbuild’s dev server, serving the UI at <http://localhost:8000>
@@ -42,7 +42,7 @@ by default. Adjust `API_BASE_URL` to match your API host. (Use `--servedir=dist`
 ### Production build
 
 ```bash
-pnpm --filter @surface/search-ui build
+pnpm --filter @ownsearch/search-ui build
 ```
 
 Artifacts land in `apps/search-ui/dist/`. Serve the directory with any static server
@@ -58,7 +58,7 @@ window.__API_BASE_URL__ = "https://search.example.com/api";
 Install new packages from the monorepo root:
 
 ```bash
-pnpm add <package> --filter @surface/search-ui
+pnpm add <package> --filter @ownsearch/search-ui
 ```
 
 ## Implementation Notes
