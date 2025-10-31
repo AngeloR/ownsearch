@@ -180,7 +180,7 @@ async function runLoop(initialUrl: string | undefined): Promise<void> {
       }
 
       counter.value = 0;
-      const crawler = createCrawler(redis, counter, parsedSeed.hostname);
+      const crawler = createCrawler(redis, counter);
 
       try {
         console.info(`Starting crawl for ${parsedSeed.href}`);
