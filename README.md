@@ -44,7 +44,18 @@ containers with a single command.
    Visit <http://localhost:8080> (or whichever port you configured). The UI proxies
    requests to the API under `/api`.
 
-5. **Stop the stack**
+5. **Queue additional crawl jobs (optional)**
+
+   ```bash
+   curl -X POST "http://localhost:8000/api/crawl" \\
+     -H "Content-Type: application/json" \\
+     -d '{"url": "https://example.com"}'
+   ```
+
+   The crawler polls this queue continuously and will process new URLs as they
+   arrive.
+
+6. **Stop the stack**
 
    ```bash
    docker compose down
@@ -65,10 +76,10 @@ containers with a single command.
 
 All tunable options live in `.env`. Key settings:
 
-- **Redis:** `REDIS_URL`, `REDIS_HOST_PORT`
+- **Redis:** `REDIS_URL`, `REDIS_HOST_PORT`, `REDIS_SEED_QUEUE`
 - **Postgres:** `DATABASE_URL`, `PGVECTOR_HOST_PORT`,
   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- **Crawler:** `CRAWLER_START_URL`, queue key and document prefix
+- **Crawler:** `CRAWLER_START_URL`, queue/document prefixes, `SEED_POLL_INTERVAL_MS`
 - **Indexer:** chunk sizing, embedding dimension overrides
 - **API:** route prefix, weighting for text vs vector relevance, listen port
 - **Search UI:** `SEARCH_UI_API_BASE_URL` (defaults to `/api`)
@@ -98,6 +109,8 @@ beyond the lifecycle of the containers.
   confirm the connection string in `.env` points to `pgvector` (not `localhost`).
 - The crawler only follows links on the same domain by default; raise or lower
   `CRAWLER_MAX_REQUESTS` as required.
+- Use `POST /api/crawl` with a JSON body `{"url": "https://example.com"}` to
+  queue on-demand crawl jobs while the system is running.
 - To rebuild images after code changes: `docker compose --env-file .env up --build`.
 
 Enjoy exploring! Each application has a dedicated README with development-focused

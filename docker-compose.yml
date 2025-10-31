@@ -50,6 +50,8 @@ services:
       VECTOR_WEIGHT: ${API_VECTOR_WEIGHT:-0.4}
       RESULT_LIMIT: ${API_RESULT_LIMIT:-10}
       ROUTE_PREFIX: ${API_ROUTE_PREFIX:-/api}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_SEED_QUEUE: ${REDIS_SEED_QUEUE:-crawler:seeds}
     ports:
       - "${API_HOST_PORT:-8000}:${API_PORT:-8000}"
     restart: unless-stopped
@@ -67,8 +69,10 @@ services:
       START_URL: ${CRAWLER_START_URL:-https://example.com}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_QUEUE_KEY: ${CRAWLER_REDIS_QUEUE_KEY:-crawler:queue}
+      REDIS_SEED_QUEUE: ${CRAWLER_REDIS_SEED_QUEUE:-crawler:seeds}
       REDIS_DOC_PREFIX: ${CRAWLER_REDIS_DOC_PREFIX:-crawler:doc}
       MAX_REQUESTS_PER_CRAWL: ${CRAWLER_MAX_REQUESTS:-100}
+      SEED_POLL_INTERVAL_MS: ${SEED_POLL_INTERVAL_MS:-10000}
     restart: unless-stopped
     networks:
       - data

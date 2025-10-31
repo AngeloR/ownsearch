@@ -3,7 +3,9 @@ import fastifyCors from "@fastify/cors";
 
 import { HOST, PORT, ROUTE_PREFIX } from "./config.js";
 import { closePool } from "./db.js";
+import { closeRedis } from "./redis.js";
 import searchRoutes from "./routes/search.js";
+import seedRoutes from "./routes/seed.js";
 
 export function buildServer() {
   const app = Fastify({
@@ -16,12 +18,15 @@ export function buildServer() {
 
   if (ROUTE_PREFIX) {
     app.register(searchRoutes, { prefix: ROUTE_PREFIX });
+    app.register(seedRoutes, { prefix: ROUTE_PREFIX });
   } else {
     app.register(searchRoutes);
+    app.register(seedRoutes);
   }
 
   app.addHook("onClose", async () => {
     await closePool();
+    await closeRedis();
   });
 
   return app;

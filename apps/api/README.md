@@ -16,6 +16,8 @@ and receive ranked documents with snippet, aggregate score, and scoring breakdow
 | `TEXT_WEIGHT`          | Weight applied to full-text score                                               | `0.6`                                                |
 | `VECTOR_WEIGHT`        | Weight applied to cosine similarity                                             | `0.4`                                                |
 | `RESULT_LIMIT`         | Maximum number of results returned (bounded by 50 in code)                      | `10`                                                 |
+| `REDIS_URL`            | Redis connection string (for crawl queue enqueueing)                            | `redis://localhost:6379`                             |
+| `REDIS_SEED_QUEUE`     | Redis list key that holds pending crawl requests                                | `crawler:seeds`                                      |
 
 ## Local Development
 
@@ -37,6 +39,8 @@ pnpm --filter @surface/api build
 
 ```bash
 DATABASE_URL=postgres://postgres:postgres@localhost:5431/postgres \
+REDIS_URL=redis://localhost:6379 \
+REDIS_SEED_QUEUE=crawler:seeds \
 ROUTE_PREFIX=/api \
 pnpm --filter @surface/api start
 ```
@@ -53,7 +57,7 @@ pnpm --filter @surface/api dev
 
 ### Querying
 
-Example request:
+Example search request:
 
 ```bash
 curl "http://localhost:8000/api/search?q=open+source"
@@ -76,6 +80,18 @@ Response excerpt:
   ]
 }
 ```
+
+### Enqueueing new crawl seeds
+
+```bash
+curl -X POST "http://localhost:8000/api/crawl" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/interesting"}'
+```
+
+The API normalises the URL, strips fragments, pushes it onto
+`REDIS_SEED_QUEUE`, and returns the canonicalised value. The crawler polls the
+same queue and will begin a new crawl cycle shortly after.
 
 ### Adding dependencies
 

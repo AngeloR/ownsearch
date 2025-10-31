@@ -7,6 +7,9 @@ import process from "node:process";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const REDIS_QUEUE_KEY = process.env.REDIS_QUEUE_KEY ?? "crawler:queue";
 const REDIS_DOC_PREFIX = process.env.REDIS_DOC_PREFIX ?? "crawler:doc";
+const REDIS_SEED_QUEUE = process.env.REDIS_SEED_QUEUE ?? "crawler:seeds";
+const POLL_INTERVAL_RAW = Number.parseInt(process.env.SEED_POLL_INTERVAL_MS ?? "10000", 10);
+const POLL_INTERVAL_MS = Number.isFinite(POLL_INTERVAL_RAW) && POLL_INTERVAL_RAW > 0 ? POLL_INTERVAL_RAW : 10000;
 const MAX_REQUESTS_PER_CRAWL = Number.parseInt(
   process.env.MAX_REQUESTS_PER_CRAWL ?? "100",
   10
@@ -42,14 +45,10 @@ type ArticleRecord = {
   crawledAt: string;
 };
 
-async function runCrawler(startUrl: string): Promise<void> {
-  ensureValidUrl(startUrl);
+type PageCounter = { value: number };
 
-  const redis = new RedisClient(REDIS_URL);
-
-  let pageCounter = 0;
-
-  const crawler = new CheerioCrawler({
+function createCrawler(redis: RedisClient, counter: PageCounter): CheerioCrawler {
+  return new CheerioCrawler({
     maxRequestsPerCrawl: Number.isFinite(MAX_REQUESTS_PER_CRAWL) ? MAX_REQUESTS_PER_CRAWL : 100,
     async requestHandler({ request, body, enqueueLinks, log }) {
       if (!body) {
@@ -68,8 +67,8 @@ async function runCrawler(startUrl: string): Promise<void> {
       if (!textContent) {
         log.warning(`Readability could not extract content for ${request.url}`);
       } else {
-        pageCounter += 1;
-        const redisKey = buildRedisKey(request.loadedUrl ?? request.url, pageCounter);
+        counter.value += 1;
+        const redisKey = buildRedisKey(request.loadedUrl ?? request.url, counter.value);
         const record: ArticleRecord = {
           url: request.loadedUrl ?? request.url,
           title,
@@ -90,9 +89,59 @@ async function runCrawler(startUrl: string): Promise<void> {
       log.error(`Request ${request.url} failed too many times.`);
     },
   });
+}
+
+async function popSeed(redis: RedisClient): Promise<string | null> {
+  const seed = await redis.lpop(REDIS_SEED_QUEUE);
+  return seed === null ? null : seed;
+}
+
+async function waitForSeed(redis: RedisClient): Promise<string> {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const seed = await popSeed(redis);
+    if (seed) return seed;
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+}
+
+async function runLoop(initialUrl: string | undefined): Promise<void> {
+  const redis = new RedisClient(REDIS_URL);
+  const counter: PageCounter = { value: 0 };
 
   try {
-    await crawler.run([startUrl]);
+    let current: string | null = initialUrl ?? (await popSeed(redis));
+
+    if (!current) {
+      console.log(
+        "Crawler idle: awaiting URLs on seed queue", REDIS_SEED_QUEUE
+      );
+    }
+
+    while (true) {
+      const urlToCrawl = current ?? (await waitForSeed(redis));
+      current = null;
+
+      try {
+        ensureValidUrl(urlToCrawl);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Invalid seed URL '${urlToCrawl}': ${message}`);
+        continue;
+      }
+
+      counter.value = 0;
+      const crawler = createCrawler(redis, counter);
+
+      try {
+        console.info(`Starting crawl for ${urlToCrawl}`);
+        await crawler.run([urlToCrawl]);
+        console.info(`Completed crawl for ${urlToCrawl}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Crawler error for ${urlToCrawl}: ${message}`);
+      }
+    }
   } finally {
     await redis.quit();
   }
@@ -102,16 +151,8 @@ export async function main(): Promise<void> {
   const [, , argUrl] = process.argv;
   const startUrl = argUrl ?? process.env.START_URL;
 
-  if (!startUrl) {
-    console.error(
-      "Missing start URL. Provide via CLI argument or START_URL environment variable."
-    );
-    process.exitCode = 1;
-    return;
-  }
-
   try {
-    await runCrawler(startUrl);
+    await runLoop(startUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`Crawler encountered an error: ${message}`);

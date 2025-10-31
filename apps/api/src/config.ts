@@ -37,3 +37,7 @@ function normalizeRoutePrefix(value: string | undefined): string | undefined {
 }
 
 export const ROUTE_PREFIX = normalizeRoutePrefix(process.env.ROUTE_PREFIX);
+
+export const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
+export const REDIS_SEED_QUEUE =
+  process.env.REDIS_SEED_QUEUE ?? "crawler:seeds";
