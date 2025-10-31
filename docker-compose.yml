@@ -73,6 +73,8 @@ services:
       REDIS_DOC_PREFIX: ${CRAWLER_REDIS_DOC_PREFIX:-crawler:doc}
       MAX_REQUESTS_PER_CRAWL: ${CRAWLER_MAX_REQUESTS:-100}
       SEED_POLL_INTERVAL_MS: ${SEED_POLL_INTERVAL_MS:-10000}
+      CRAWL_DELAY_MIN_MS: ${CRAWL_DELAY_MIN_MS:-3000}
+      CRAWL_DELAY_MAX_MS: ${CRAWL_DELAY_MAX_MS:-7000}
     restart: unless-stopped
     networks:
       - data

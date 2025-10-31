@@ -48,8 +48,18 @@ type ArticleRecord = {
 type PageCounter = { value: number };
 
 function createCrawler(redis: RedisClient, counter: PageCounter): CheerioCrawler {
+  const minDelay = Number.parseInt(process.env.CRAWL_DELAY_MIN_MS ?? "3000", 10);
+  const maxDelay = Number.parseInt(process.env.CRAWL_DELAY_MAX_MS ?? "7000", 10);
+  const effectiveMin = Number.isFinite(minDelay) && minDelay >= 0 ? minDelay : 3000;
+  const effectiveMax =
+    Number.isFinite(maxDelay) && maxDelay >= effectiveMin ? maxDelay : effectiveMin + 4000;
+
+  const randomDelay = () =>
+    Math.floor(Math.random() * (effectiveMax - effectiveMin + 1)) + effectiveMin;
+
   return new CheerioCrawler({
     maxRequestsPerCrawl: Number.isFinite(MAX_REQUESTS_PER_CRAWL) ? MAX_REQUESTS_PER_CRAWL : 100,
+    requestHandlerTimeoutSecs: Math.max(effectiveMax / 1000 + 30, 60),
     async requestHandler({ request, body, enqueueLinks, log }) {
       if (!body) {
         log.warning(`No body returned for ${request.url}, skipping.`);
@@ -84,6 +94,10 @@ function createCrawler(redis: RedisClient, counter: PageCounter): CheerioCrawler
       await enqueueLinks({
         strategy: "same-domain",
       });
+
+      const delay = randomDelay();
+      log.debug(`Sleeping ${delay}ms before next request`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     },
     failedRequestHandler({ request, log }) {
       log.error(`Request ${request.url} failed too many times.`);

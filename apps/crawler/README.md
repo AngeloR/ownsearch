@@ -21,6 +21,8 @@ All options can be supplied via environment variables (defaults shown):
 | `REDIS_DOC_PREFIX`        | Key prefix for stored document payloads                  | `crawler:doc`                 |
 | `MAX_REQUESTS_PER_CRAWL`  | Crawl limit (protects against infinite traversals)       | `100`                         |
 | `SEED_POLL_INTERVAL_MS`   | Interval between seed-queue polls (ms)                   | `10000`                       |
+| `CRAWL_DELAY_MIN_MS`      | Minimum delay between processed pages (ms)               | `3000`                        |
+| `CRAWL_DELAY_MAX_MS`      | Maximum delay between processed pages (ms)               | `7000`                        |
 
 ## Local Development
 

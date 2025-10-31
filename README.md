@@ -79,7 +79,7 @@ All tunable options live in `.env`. Key settings:
 - **Redis:** `REDIS_URL`, `REDIS_HOST_PORT`, `REDIS_SEED_QUEUE`
 - **Postgres:** `DATABASE_URL`, `PGVECTOR_HOST_PORT`,
   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- **Crawler:** `CRAWLER_START_URL`, queue/document prefixes, `SEED_POLL_INTERVAL_MS`
+- **Crawler:** `CRAWLER_START_URL`, queue/document prefixes, `SEED_POLL_INTERVAL_MS`, crawl delay min/max
 - **Indexer:** chunk sizing, embedding dimension overrides
 - **API:** route prefix, weighting for text vs vector relevance, listen port
 - **Search UI:** `SEARCH_UI_API_BASE_URL` (defaults to `/api`)
