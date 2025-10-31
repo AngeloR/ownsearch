@@ -8,11 +8,17 @@ const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const REDIS_QUEUE_KEY = process.env.REDIS_QUEUE_KEY ?? "crawler:queue";
 const REDIS_DOC_PREFIX = process.env.REDIS_DOC_PREFIX ?? "crawler:doc";
 const REDIS_SEED_QUEUE = process.env.REDIS_SEED_QUEUE ?? "crawler:seeds";
-const POLL_INTERVAL_RAW = Number.parseInt(process.env.SEED_POLL_INTERVAL_MS ?? "10000", 10);
-const POLL_INTERVAL_MS = Number.isFinite(POLL_INTERVAL_RAW) && POLL_INTERVAL_RAW > 0 ? POLL_INTERVAL_RAW : 10000;
+const POLL_INTERVAL_RAW = Number.parseInt(
+  process.env.SEED_POLL_INTERVAL_MS ?? "10000",
+  10,
+);
+const POLL_INTERVAL_MS =
+  Number.isFinite(POLL_INTERVAL_RAW) && POLL_INTERVAL_RAW > 0
+    ? POLL_INTERVAL_RAW
+    : 10000;
 const MAX_REQUESTS_PER_CRAWL = Number.parseInt(
   process.env.MAX_REQUESTS_PER_CRAWL ?? "100",
-  10
+  10,
 );
 
 function ensureValidUrl(url: string): URL {
@@ -47,18 +53,31 @@ type ArticleRecord = {
 
 type PageCounter = { value: number };
 
-function createCrawler(redis: RedisClient, counter: PageCounter): CheerioCrawler {
-  const minDelay = Number.parseInt(process.env.CRAWL_DELAY_MIN_MS ?? "3000", 10);
-  const maxDelay = Number.parseInt(process.env.CRAWL_DELAY_MAX_MS ?? "7000", 10);
-  const effectiveMin = Number.isFinite(minDelay) && minDelay >= 0 ? minDelay : 3000;
+function createCrawler(
+  redis: RedisClient,
+  counter: PageCounter,
+): CheerioCrawler {
+  const minDelay = Number.parseInt(
+    process.env.CRAWL_DELAY_MIN_MS ?? "3000",
+    10,
+  );
+  const maxDelay = Number.parseInt(
+    process.env.CRAWL_DELAY_MAX_MS ?? "7000",
+    10,
+  );
+  const effectiveMin =
+    Number.isFinite(minDelay) && minDelay >= 0 ? minDelay : 3000;
   const effectiveMax =
-    Number.isFinite(maxDelay) && maxDelay >= effectiveMin ? maxDelay : effectiveMin + 4000;
+    Number.isFinite(maxDelay) && maxDelay >= effectiveMin
+      ? maxDelay
+      : effectiveMin + 4000;
 
   const randomDelay = () =>
-    Math.floor(Math.random() * (effectiveMax - effectiveMin + 1)) + effectiveMin;
+    Math.floor(Math.random() * (effectiveMax - effectiveMin + 1)) +
+    effectiveMin;
 
   return new CheerioCrawler({
-    maxRequestsPerCrawl: Number.isFinite(MAX_REQUESTS_PER_CRAWL) ? MAX_REQUESTS_PER_CRAWL : 100,
+    maxRequestsPerCrawl: MAX_REQUESTS_PER_CRAWL,
     requestHandlerTimeoutSecs: Math.max(effectiveMax / 1000 + 30, 60),
     async requestHandler({ request, body, enqueueLinks, log }) {
       if (!body) {
@@ -71,14 +90,18 @@ function createCrawler(redis: RedisClient, counter: PageCounter): CheerioCrawler
       const reader = new Readability(dom.window.document);
       const article = reader.parse();
 
-      const title = article?.title?.trim() || dom.window.document.title || request.url;
+      const title =
+        article?.title?.trim() || dom.window.document.title || request.url;
       const textContent = article?.textContent?.trim();
 
       if (!textContent) {
         log.warning(`Readability could not extract content for ${request.url}`);
       } else {
         counter.value += 1;
-        const redisKey = buildRedisKey(request.loadedUrl ?? request.url, counter.value);
+        const redisKey = buildRedisKey(
+          request.loadedUrl ?? request.url,
+          counter.value,
+        );
         const record: ArticleRecord = {
           url: request.loadedUrl ?? request.url,
           title,
@@ -92,7 +115,17 @@ function createCrawler(redis: RedisClient, counter: PageCounter): CheerioCrawler
       }
 
       await enqueueLinks({
-        strategy: "same-domain",
+        transformRequestFunction: (req) => {
+          const skipEndings = [".pdf", ".gif", ".png", ".jpg", ".xml"];
+
+          const skip = skipEndings.some((t) => req.url.endsWith(t));
+          if (skip) {
+            log.debug(`Skipping ${req.url.endsWith}`);
+            return false;
+          }
+
+          return req;
+        },
       });
 
       const delay = randomDelay();
@@ -128,7 +161,8 @@ async function runLoop(initialUrl: string | undefined): Promise<void> {
 
     if (!current) {
       console.log(
-        "Crawler idle: awaiting URLs on seed queue", REDIS_SEED_QUEUE
+        "Crawler idle: awaiting URLs on seed queue",
+        REDIS_SEED_QUEUE,
       );
     }
 
@@ -136,8 +170,9 @@ async function runLoop(initialUrl: string | undefined): Promise<void> {
       const urlToCrawl = current ?? (await waitForSeed(redis));
       current = null;
 
+      let parsedSeed: URL;
       try {
-        ensureValidUrl(urlToCrawl);
+        parsedSeed = ensureValidUrl(urlToCrawl);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Invalid seed URL '${urlToCrawl}': ${message}`);
@@ -145,12 +180,12 @@ async function runLoop(initialUrl: string | undefined): Promise<void> {
       }
 
       counter.value = 0;
-      const crawler = createCrawler(redis, counter);
+      const crawler = createCrawler(redis, counter, parsedSeed.hostname);
 
       try {
-        console.info(`Starting crawl for ${urlToCrawl}`);
-        await crawler.run([urlToCrawl]);
-        console.info(`Completed crawl for ${urlToCrawl}`);
+        console.info(`Starting crawl for ${parsedSeed.href}`);
+        await crawler.run([parsedSeed.href]);
+        console.info(`Completed crawl for ${parsedSeed.href}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Crawler error for ${urlToCrawl}: ${message}`);
@@ -176,7 +211,8 @@ export async function main(): Promise<void> {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((error) => {
-    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    const message =
+      error instanceof Error ? (error.stack ?? error.message) : String(error);
     console.error(message);
     process.exitCode = 1;
   });
