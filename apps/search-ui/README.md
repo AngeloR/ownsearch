@@ -66,3 +66,5 @@ pnpm add <package> --filter @ownsearch/search-ui
 - The UI uses plain DOM APIs and a small amount of TypeScript; no frameworks required.
 - Results show combined score plus component scores to aid debugging relevancy.
 - Errors and empty states are surfaced inline to keep the UX responsive.
+- `/admin.html` provides a lightweight admin view for enqueueing new crawl seeds and reviewing
+  the currently indexed hostnames.

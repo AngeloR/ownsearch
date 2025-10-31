@@ -13,6 +13,15 @@ type SearchResponse = {
   results: SearchResult[];
 };
 
+type EnqueueResponse = {
+  url: string;
+  queue: string;
+};
+
+type HostListResponse = {
+  hosts: string[];
+};
+
 const API_BASE_URL =
   (window as { __API_BASE_URL__?: string }).__API_BASE_URL__ ??
   "http://localhost:8000";
@@ -67,7 +76,7 @@ async function performSearch(query: string): Promise<SearchResult[]> {
   return data.results ?? [];
 }
 
-function setLoading(isLoading: boolean, button: HTMLButtonElement): void {
+function setSearchLoading(isLoading: boolean, button: HTMLButtonElement): void {
   button.disabled = isLoading;
   button.textContent = isLoading ? "Searching…" : "Search";
 }
@@ -95,14 +104,136 @@ function showError(message: string, container: HTMLElement): void {
   container.appendChild(error);
 }
 
-function init(): void {
+async function enqueueUrl(url: string): Promise<EnqueueResponse> {
+  const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/crawl`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+
+  let data: EnqueueResponse | { error?: string } | null = null;
+
+  try {
+    data = (await response.json()) as EnqueueResponse | { error?: string };
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      (data && "error" in data && typeof data.error === "string" && data.error) ||
+      `Failed with status ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  if (!data || !("url" in data) || !("queue" in data)) {
+    throw new Error("Unexpected response from server.");
+  }
+
+  return data;
+}
+
+async function fetchHosts(): Promise<string[]> {
+  const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/hosts`);
+
+  let data: HostListResponse | { error?: string } | null = null;
+
+  try {
+    data = (await response.json()) as HostListResponse | { error?: string };
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      (data && "error" in data && typeof data.error === "string" && data.error) ||
+      `Failed with status ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  if (!data || !("hosts" in data) || !Array.isArray(data.hosts)) {
+    throw new Error("Unexpected response from server.");
+  }
+
+  return data.hosts
+    .map((host) => (typeof host === "string" ? host.trim() : String(host)))
+    .filter((host) => host.length > 0);
+}
+
+function setSeedLoading(isLoading: boolean, button: HTMLButtonElement): void {
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Enqueuing…" : "Enqueue";
+}
+
+function setSeedStatus(
+  element: HTMLElement,
+  message: string,
+  variant: "info" | "success" | "error",
+): void {
+  element.textContent = message;
+  element.classList.remove("empty-state", "error-state", "success-state");
+
+  if (variant === "success") {
+    element.classList.add("success-state");
+  } else if (variant === "error") {
+    element.classList.add("error-state");
+  } else {
+    element.classList.add("empty-state");
+  }
+}
+
+function setHostsLoading(button: HTMLButtonElement | null, isLoading: boolean): void {
+  if (!button) {
+    return;
+  }
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Refreshing…" : "Refresh";
+}
+
+function setHostsMessage(
+  container: HTMLElement,
+  message: string,
+  variant: "info" | "success" | "error",
+): void {
+  container.innerHTML = "";
+  const messageElement = document.createElement("p");
+  messageElement.textContent = message;
+  if (variant === "success") {
+    messageElement.className = "success-state";
+  } else if (variant === "error") {
+    messageElement.className = "error-state";
+  } else {
+    messageElement.className = "empty-state";
+  }
+  container.appendChild(messageElement);
+}
+
+function renderHostList(hosts: string[], container: HTMLElement): void {
+  container.innerHTML = "";
+
+  if (hosts.length === 0) {
+    setHostsMessage(container, "No hostnames found yet.", "info");
+    return;
+  }
+
+  const list = document.createElement("ul");
+  for (const host of hosts) {
+    const item = document.createElement("li");
+    item.className = "host-item";
+    item.textContent = host;
+    list.appendChild(item);
+  }
+
+  container.appendChild(list);
+}
+
+function initSearchPage(): void {
   const form = document.querySelector<HTMLFormElement>("#search-form");
   const input = document.querySelector<HTMLInputElement>("#search-input");
   const button = document.querySelector<HTMLButtonElement>("#search-button");
   const resultsContainer = document.querySelector<HTMLElement>("#results");
 
   if (!form || !input || !button || !resultsContainer) {
-    console.error("Search UI failed to initialize: elements missing.");
     return;
   }
 
@@ -120,7 +251,7 @@ function init(): void {
     currentController?.abort();
     currentController = new AbortController();
 
-    setLoading(true, button);
+    setSearchLoading(true, button);
     resultsContainer.innerHTML = "";
 
     try {
@@ -133,7 +264,7 @@ function init(): void {
           : "Something went wrong while searching.";
       showError(message, resultsContainer);
     } finally {
-      setLoading(false, button);
+      setSearchLoading(false, button);
     }
   };
 
@@ -141,4 +272,97 @@ function init(): void {
   button.addEventListener("click", handleSearch);
 }
 
-document.addEventListener("DOMContentLoaded", init);
+function initAdminPage(): void {
+  const form = document.querySelector<HTMLFormElement>("#seed-form");
+  const input = document.querySelector<HTMLInputElement>("#seed-input");
+  const button = document.querySelector<HTMLButtonElement>("#seed-button");
+  const status = document.querySelector<HTMLElement>("#seed-status");
+  const hostsContainer = document.querySelector<HTMLElement>("#hosts-container");
+  const hostsRefreshButton =
+    document.querySelector<HTMLButtonElement>("#hosts-refresh");
+
+  if (!form || !input || !button || !status) {
+    return;
+  }
+
+  const loadHosts = async () => {
+    if (!hostsContainer) {
+      return;
+    }
+
+    setHostsLoading(hostsRefreshButton, true);
+    setHostsMessage(hostsContainer, "Loading hostnames…", "info");
+
+    try {
+      const hosts = await fetchHosts();
+      renderHostList(hosts, hostsContainer);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load hostnames.";
+      setHostsMessage(hostsContainer, message, "error");
+    } finally {
+      setHostsLoading(hostsRefreshButton, false);
+    }
+  };
+
+  const handleSubmit = async (event: Event) => {
+    event.preventDefault();
+
+    const url = input.value.trim();
+    if (!url) {
+      setSeedStatus(status, "Enter a URL to enqueue.", "error");
+      input.focus();
+      return;
+    }
+
+    try {
+      // Validate URL locally before hitting the API.
+      new URL(url);
+    } catch {
+      setSeedStatus(status, "Enter a valid, absolute URL (including protocol).", "error");
+      input.focus();
+      return;
+    }
+
+    setSeedLoading(true, button);
+    setSeedStatus(status, "Submitting URL…", "info");
+
+    try {
+      const result = await enqueueUrl(url);
+      setSeedStatus(
+        status,
+        `Enqueued ${result.url} onto queue ${result.queue}.`,
+        "success",
+      );
+      form.reset();
+      input.focus();
+      if (hostsContainer) {
+        await loadHosts();
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to enqueue URL. Please try again.";
+      setSeedStatus(status, message, "error");
+    } finally {
+      setSeedLoading(false, button);
+    }
+  };
+
+  form.addEventListener("submit", handleSubmit);
+  button.addEventListener("click", handleSubmit);
+
+  if (hostsRefreshButton) {
+    hostsRefreshButton.addEventListener("click", () => {
+      void loadHosts();
+    });
+  }
+
+  if (hostsContainer) {
+    void loadHosts();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initSearchPage();
+  initAdminPage();
+});

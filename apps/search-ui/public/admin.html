@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ownsearch Admin</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top-nav">
+      <a class="nav-logo" href="./">Ownsearch</a>
+      <nav class="nav-links" aria-label="Primary">
+        <a class="nav-link" href="./">Search</a>
+        <a class="nav-link nav-link--active" href="./admin.html">Admin</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="hero">
+        <h1>Crawler Admin</h1>
+        <p class="tagline">Enqueue new URLs for the crawler without leaving the UI.</p>
+      </section>
+
+      <section class="card">
+        <h2>Add URL to Crawl Queue</h2>
+        <form id="seed-form" class="seed-form">
+          <label class="visually-hidden" for="seed-input">URL to crawl</label>
+          <input
+            id="seed-input"
+            type="url"
+            name="url"
+            placeholder="https://example.com/resource"
+            autocomplete="off"
+            aria-required="true"
+            required
+          />
+          <button id="seed-button" type="submit">Enqueue</button>
+        </form>
+        <p id="seed-status" class="empty-state" aria-live="polite">
+          Submit a URL to push it onto the crawl queue.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-heading">
+          <h2>Indexed Hosts</h2>
+          <button id="hosts-refresh" class="ghost-button" type="button">
+            Refresh
+          </button>
+        </div>
+        <div id="hosts-container" class="host-list" aria-live="polite">
+          <p class="empty-state">Loading hostnames…</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="./env.js"></script>
+    <script type="module" src="./assets/index.js"></script>
+  </body>
+</html>
