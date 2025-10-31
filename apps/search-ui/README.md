@@ -61,6 +61,15 @@ Install new packages from the monorepo root:
 pnpm add <package> --filter @ownsearch/search-ui
 ```
 
+### Refreshing the Docker container
+
+To serve the latest UI bundle via Docker Compose, rebuild the search UI image and recreate the service:
+
+```bash
+docker compose build search-ui
+docker compose up -d --force-recreate search-ui
+```
+
 ## Implementation Notes
 
 - The UI uses plain DOM APIs and a small amount of TypeScript; no frameworks required.

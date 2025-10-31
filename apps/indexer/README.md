@@ -76,6 +76,21 @@ Install workspace dependencies from the monorepo root:
 pnpm add <package> --filter @ownsearch/indexer
 ```
 
+### Refreshing the Docker container
+
+After updating the indexer code, rebuild its image and recreate the service so the container loads the changes:
+
+```bash
+docker compose build indexer
+docker compose up -d --force-recreate indexer
+```
+
+Apply any new database migrations before or immediately after the restart:
+
+```bash
+docker compose run --rm indexer pnpm --filter @ownsearch/indexer migrate
+```
+
 ## Operational Notes
 
 - The indexer overwrites existing rows for the same document URL, making re-crawls

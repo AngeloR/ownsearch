@@ -83,6 +83,15 @@ Because the project uses pnpm workspaces, run installs from the workspace root:
 pnpm add <pkg> --filter @ownsearch/crawler
 ```
 
+### Refreshing the Docker container
+
+Rebuild and restart the crawler service whenever you update its code:
+
+```bash
+docker compose build crawler
+docker compose up -d --force-recreate crawler
+```
+
 ## Architecture Notes
 
 - Only same-domain links are enqueued (`strategy: "same-domain"`). Adjust the crawler

@@ -118,6 +118,15 @@ Response:
 pnpm add <package> --filter @ownsearch/api
 ```
 
+### Refreshing the Docker container
+
+When you change the API code, rebuild its image and recreate the container to serve the new build:
+
+```bash
+docker compose build api
+docker compose up -d --force-recreate api
+```
+
 ## Implementation Notes
 
 - The API uses deterministic embeddings (matching the indexer). Swap `embedText`
