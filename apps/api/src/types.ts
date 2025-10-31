@@ -13,6 +13,11 @@ export type SearchResponseBody = {
   results: SearchResult[];
 };
 
+export type HostInfo = {
+  hostname: string;
+  lastCrawledAt: string | null;
+};
+
 export type HostListResponseBody = {
-  hosts: string[];
+  hosts: HostInfo[];
 };

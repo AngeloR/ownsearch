@@ -108,7 +108,16 @@ Response:
 
 ```json
 {
-  "hosts": ["blog.example.com", "docs.example.com", "www.example.com"]
+  "hosts": [
+    {
+      "hostname": "blog.example.com",
+      "lastCrawledAt": "2024-03-20T15:22:18.123Z"
+    },
+    {
+      "hostname": "docs.example.com",
+      "lastCrawledAt": "2024-03-19T09:05:44.987Z"
+    }
+  ]
 }
 ```
 

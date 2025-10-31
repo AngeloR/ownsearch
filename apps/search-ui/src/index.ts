@@ -18,8 +18,13 @@ type EnqueueResponse = {
   queue: string;
 };
 
+type HostInfo = {
+  hostname: string;
+  lastCrawledAt: string | null;
+};
+
 type HostListResponse = {
-  hosts: string[];
+  hosts: HostInfo[];
 };
 
 const API_BASE_URL =
@@ -133,7 +138,37 @@ async function enqueueUrl(url: string): Promise<EnqueueResponse> {
   return data;
 }
 
-async function fetchHosts(): Promise<string[]> {
+function normalizeIsoString(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+
+  const coerced = String(value);
+  const date = new Date(coerced);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function formatLastCrawled(value: string | null): string {
+  if (!value) {
+    return "Last crawled: unknown";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Last crawled: unknown";
+  }
+  return `Last crawled: ${date.toLocaleString()}`;
+}
+
+async function fetchHosts(): Promise<HostInfo[]> {
   const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/hosts`);
 
   let data: HostListResponse | { error?: string } | null = null;
@@ -155,9 +190,32 @@ async function fetchHosts(): Promise<string[]> {
     throw new Error("Unexpected response from server.");
   }
 
-  return data.hosts
-    .map((host) => (typeof host === "string" ? host.trim() : String(host)))
-    .filter((host) => host.length > 0);
+  const rawHosts = data.hosts as unknown[];
+
+  return rawHosts
+    .map((host) => {
+      if (!host || typeof host !== "object") {
+        return undefined;
+      }
+      const entry = host as Record<string, unknown>;
+      const hostnameRaw = entry.hostname;
+      if (typeof hostnameRaw !== "string") {
+        return undefined;
+      }
+
+      const hostname = hostnameRaw.trim();
+      if (!hostname) {
+        return undefined;
+      }
+
+      const lastCrawledAt = normalizeIsoString(entry.lastCrawledAt);
+
+      return {
+        hostname,
+        lastCrawledAt,
+      };
+    })
+    .filter((host): host is HostInfo => Boolean(host));
 }
 
 function setSeedLoading(isLoading: boolean, button: HTMLButtonElement): void {
@@ -208,7 +266,7 @@ function setHostsMessage(
   container.appendChild(messageElement);
 }
 
-function renderHostList(hosts: string[], container: HTMLElement): void {
+function renderHostList(hosts: HostInfo[], container: HTMLElement): void {
   container.innerHTML = "";
 
   if (hosts.length === 0) {
@@ -220,7 +278,7 @@ function renderHostList(hosts: string[], container: HTMLElement): void {
   for (const host of hosts) {
     const item = document.createElement("li");
     item.className = "host-item";
-    item.textContent = host;
+    item.textContent = `${host.hostname} - ${formatLastCrawled(host.lastCrawledAt)}`;
     list.appendChild(item);
   }
 
