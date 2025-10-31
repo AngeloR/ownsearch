@@ -63,14 +63,14 @@ containers with a single command.
 
 ## Services & Ports (Defaults)
 
-| Service      | Description                              | Port |
-| ------------ | ---------------------------------------- | ---- |
-| `redis`      | FIFO queue for crawler/indexer           | 6379 |
-| `pgvector`   | PostgreSQL + pgvector extension          | 5431 |
-| `api`        | Fastify hybrid full-text/vector search   | 8000 |
-| `crawler`    | Crawlee + Readability content fetcher    | n/a (worker) |
-| `indexer`    | Redis consumer + pgvector ingester       | n/a (worker) |
-| `search-ui`  | Static HTML/TS front-end (nginx)         | 8080 |
+| Service     | Description                            | Port         |
+| ----------- | -------------------------------------- | ------------ |
+| `redis`     | FIFO queue for crawler/indexer         | 6379         |
+| `pgvector`  | PostgreSQL + pgvector extension        | 5431         |
+| `api`       | Fastify hybrid full-text/vector search | 8000         |
+| `crawler`   | Crawlee + Readability content fetcher  | n/a (worker) |
+| `indexer`   | Redis consumer + pgvector ingester     | n/a (worker) |
+| `search-ui` | Static HTML/TS front-end (nginx)       | 8080         |
 
 ## Configuration Overview
 
@@ -115,3 +115,12 @@ beyond the lifecycle of the containers.
 
 Enjoy exploring! Each application has a dedicated README with development-focused
 details if you want to work on components individually.
+
+## Built With
+
+- [Crawlee](https://crawlee.dev/) – high-level crawling framework powering the crawler
+- [Readability](https://github.com/mozilla/readability) – article extraction for clean text content
+- [Redis](https://redis.io/) – queue and transient document store between crawler and indexer
+- [PostgreSQL](https://www.postgresql.org/) – primary relational datastore
+- [pgvector](https://github.com/pgvector/pgvector) – similarity search extension for vector embeddings
+- [Fastify](https://fastify.dev/) – low overhead API server
