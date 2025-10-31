@@ -12,3 +12,7 @@ export type SearchResult = {
 export type SearchResponseBody = {
   results: SearchResult[];
 };
+
+export type HostListResponseBody = {
+  hosts: string[];
+};

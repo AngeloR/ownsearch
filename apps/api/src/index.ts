@@ -4,6 +4,7 @@ import fastifyCors from "@fastify/cors";
 import { HOST, PORT, ROUTE_PREFIX } from "./config.js";
 import { closePool } from "./db.js";
 import { closeRedis } from "./redis.js";
+import hostsRoutes from "./routes/hosts.js";
 import searchRoutes from "./routes/search.js";
 import seedRoutes from "./routes/seed.js";
 
@@ -17,9 +18,11 @@ export function buildServer() {
   });
 
   if (ROUTE_PREFIX) {
+    app.register(hostsRoutes, { prefix: ROUTE_PREFIX });
     app.register(searchRoutes, { prefix: ROUTE_PREFIX });
     app.register(seedRoutes, { prefix: ROUTE_PREFIX });
   } else {
+    app.register(hostsRoutes);
     app.register(searchRoutes);
     app.register(seedRoutes);
   }

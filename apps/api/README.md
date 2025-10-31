@@ -98,6 +98,20 @@ The API normalises the URL, strips fragments, pushes it onto
 `REDIS_SEED_QUEUE`, and returns the canonicalised value. The crawler polls the
 same queue and will begin a new crawl cycle shortly after.
 
+### Listing indexed hostnames
+
+```bash
+curl "http://localhost:8000/api/hosts"
+```
+
+Response:
+
+```json
+{
+  "hosts": ["blog.example.com", "docs.example.com", "www.example.com"]
+}
+```
+
 ### Adding dependencies
 
 ```bash
