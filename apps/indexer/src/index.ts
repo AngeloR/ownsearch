@@ -18,6 +18,19 @@ import type { ArticleRecord } from "./types.js";
 const redis = new RedisClient(REDIS_URL);
 const db = createDbConnection();
 
+function parseTimestamp(value: string | undefined, fallback: Date): Date {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
 async function processDocumentPayload(key: string): Promise<void> {
   const payload = await redis.get(key);
   if (!payload) {
@@ -38,7 +51,15 @@ async function processDocumentPayload(key: string): Promise<void> {
     return;
   }
 
+  let hostname: string | null = null;
+  try {
+    hostname = new URL(record.url).hostname;
+  } catch (error) {
+    console.warn(`Failed to parse hostname for URL ${record.url}, skipping host tracking.`);
+  }
+
   const now = new Date();
+  const crawledAt = parseTimestamp(record.crawledAt, now);
   const result = await db.transaction(async (trx) => {
     const existing = await trx("documents").where({ url: record.url }).first();
 
@@ -80,6 +101,19 @@ async function processDocumentPayload(key: string): Promise<void> {
         }),
         updated_at: now,
       });
+    }
+
+    if (hostname) {
+      await trx("crawled_sites")
+        .insert({
+          hostname,
+          created_at: crawledAt,
+          last_crawled_at: crawledAt,
+        })
+        .onConflict("hostname")
+        .merge({
+          last_crawled_at: crawledAt,
+        });
     }
 
     const chunks = chunkText(record.text, {
