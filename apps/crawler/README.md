@@ -92,6 +92,8 @@ docker compose build crawler
 docker compose up -d --force-recreate crawler
 ```
 
+The crawler drops its persistent Crawlee request queue after each run so future crawls can revisit the same URLs.
+
 ## Architecture Notes
 
 - Only same-domain links are enqueued (`strategy: "same-domain"`). Adjust the crawler
