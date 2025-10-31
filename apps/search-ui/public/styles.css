@@ -172,6 +172,12 @@ body {
   gap: 1rem;
 }
 
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .card-heading h2 {
   margin: 0;
 }
@@ -374,6 +380,11 @@ body {
   .card-heading {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .card-actions {
+    width: 100%;
+    flex-direction: column;
   }
 
   .ghost-button {

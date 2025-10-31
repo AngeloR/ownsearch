@@ -10,6 +10,7 @@ type EnqueueBody = {
 type EnqueueResponse = {
   url: string;
   queue: string;
+  alreadyQueued: boolean;
 };
 
 function normalizeUrl(input: string): string {
@@ -40,9 +41,11 @@ const seedRoutes: FastifyPluginCallback = async (fastify: FastifyInstance) => {
       }
 
       const redis = getRedis();
+      let alreadyQueued = false;
 
       try {
-        await redis.rpush(REDIS_SEED_QUEUE, normalized);
+        const result = await redis.sadd(REDIS_SEED_QUEUE, normalized);
+        alreadyQueued = result === 0;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         request.log.error({ err: error }, "Failed to enqueue crawl request");
@@ -50,11 +53,15 @@ const seedRoutes: FastifyPluginCallback = async (fastify: FastifyInstance) => {
         return { error: `Failed to enqueue URL: ${message}` };
       }
 
-      request.log.info({ url: normalized }, "Enqueued crawl request");
+      request.log.info(
+        { url: normalized, alreadyQueued },
+        "Enqueued crawl request",
+      );
 
       return {
         url: normalized,
         queue: REDIS_SEED_QUEUE,
+        alreadyQueued,
       };
     }
   );

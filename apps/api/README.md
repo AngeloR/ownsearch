@@ -17,7 +17,7 @@ and receive ranked documents with snippet, aggregate score, and scoring breakdow
 | `VECTOR_WEIGHT`        | Weight applied to cosine similarity                                             | `0.4`                                                |
 | `RESULT_LIMIT`         | Maximum number of results returned (bounded by 50 in code)                      | `10`                                                 |
 | `REDIS_URL`            | Redis connection string (for crawl queue enqueueing)                            | `redis://localhost:6379`                             |
-| `REDIS_SEED_QUEUE`     | Redis list key that holds pending crawl requests                                | `crawler:seeds`                                      |
+| `REDIS_SEED_QUEUE`     | Redis set key that holds pending crawl requests                                 | `crawler:seeds`                                      |
 
 ## Local Development
 
@@ -94,9 +94,29 @@ curl -X POST "http://localhost:8000/api/crawl" \
   -d '{"url": "https://example.com/interesting"}'
 ```
 
-The API normalises the URL, strips fragments, pushes it onto
-`REDIS_SEED_QUEUE`, and returns the canonicalised value. The crawler polls the
+The API normalises the URL, strips fragments, adds it to
+`REDIS_SEED_QUEUE` with `SADD`, and returns the canonicalised value. Because the queue is backed by a Redis set the crawler will not receive duplicate entries—the response includes an `alreadyQueued` flag to indicate when a URL was already scheduled. The crawler polls the
 same queue and will begin a new crawl cycle shortly after.
+
+### Triggering a full recrawl
+
+To requeue every hostname recorded in `crawled_sites`, call the admin endpoint:
+
+```bash
+curl -X POST "http://localhost:8000/api/admin/rescan"
+```
+
+The response reports how many host-level seeds were attempted versus how many were newly enqueued:
+
+```json
+{
+  "attempted": 12,
+  "enqueued": 4,
+  "queue": "crawler:seeds"
+}
+```
+
+Hosts that are already present in the Redis seed set are skipped automatically.
 
 ### Listing indexed hostnames
 

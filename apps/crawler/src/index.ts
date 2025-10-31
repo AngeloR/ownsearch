@@ -230,7 +230,7 @@ function createCrawler(
 }
 
 async function popSeed(redis: RedisClient): Promise<string | null> {
-  const seed = await redis.lpop(REDIS_SEED_QUEUE);
+  const seed = await redis.spop(REDIS_SEED_QUEUE);
   return seed === null ? null : seed;
 }
 

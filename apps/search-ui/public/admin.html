@@ -44,10 +44,18 @@
       <section class="card">
         <div class="card-heading">
           <h2>Indexed Hosts</h2>
-          <button id="hosts-refresh" class="ghost-button" type="button">
-            Refresh
-          </button>
+          <div class="card-actions">
+            <button id="hosts-rescan" class="ghost-button" type="button">
+              Rescan All
+            </button>
+            <button id="hosts-refresh" class="ghost-button" type="button">
+              Refresh
+            </button>
+          </div>
         </div>
+        <p id="rescan-status" class="empty-state" aria-live="polite">
+          Trigger a rescan to requeue all known hosts.
+        </p>
         <div id="hosts-container" class="host-list" aria-live="polite">
           <p class="empty-state">Loading hostnames…</p>
         </div>

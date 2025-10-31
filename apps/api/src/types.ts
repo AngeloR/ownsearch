@@ -21,3 +21,9 @@ export type HostInfo = {
 export type HostListResponseBody = {
   hosts: HostInfo[];
 };
+
+export type RescanResponseBody = {
+  attempted: number;
+  enqueued: number;
+  queue: string;
+};

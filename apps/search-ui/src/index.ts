@@ -16,6 +16,13 @@ type SearchResponse = {
 type EnqueueResponse = {
   url: string;
   queue: string;
+  alreadyQueued?: boolean;
+};
+
+type RescanResponse = {
+  attempted: number;
+  enqueued: number;
+  queue: string;
 };
 
 type HostInfo = {
@@ -131,11 +138,22 @@ async function enqueueUrl(url: string): Promise<EnqueueResponse> {
     throw new Error(errorMessage);
   }
 
-  if (!data || !("url" in data) || !("queue" in data)) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !("url" in data) ||
+    !("queue" in data)
+  ) {
     throw new Error("Unexpected response from server.");
   }
 
-  return data;
+  const payload = data as EnqueueResponse;
+
+  return {
+    url: String(payload.url),
+    queue: String(payload.queue),
+    alreadyQueued: Boolean(payload.alreadyQueued),
+  };
 }
 
 function normalizeIsoString(value: unknown): string | null {
@@ -218,6 +236,46 @@ async function fetchHosts(): Promise<HostInfo[]> {
     .filter((host): host is HostInfo => Boolean(host));
 }
 
+async function triggerRescan(): Promise<RescanResponse> {
+  const response = await fetch(
+    `${API_BASE_URL.replace(/\/$/, "")}/admin/rescan`,
+    { method: "POST" },
+  );
+
+  let data: RescanResponse | { error?: string } | null = null;
+
+  try {
+    data = (await response.json()) as RescanResponse | { error?: string };
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      (data && "error" in data && typeof data.error === "string" && data.error) ||
+      `Failed with status ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !("attempted" in data) ||
+    !("enqueued" in data) ||
+    !("queue" in data)
+  ) {
+    throw new Error("Unexpected response from server.");
+  }
+
+  const payload = data as RescanResponse;
+
+  return {
+    attempted: Number(payload.attempted) || 0,
+    enqueued: Number(payload.enqueued) || 0,
+    queue: String(payload.queue),
+  };
+}
+
 function setSeedLoading(isLoading: boolean, button: HTMLButtonElement): void {
   button.disabled = isLoading;
   button.textContent = isLoading ? "Enqueuing…" : "Enqueue";
@@ -264,6 +322,36 @@ function setHostsMessage(
     messageElement.className = "empty-state";
   }
   container.appendChild(messageElement);
+}
+
+function setRescanLoading(
+  button: HTMLButtonElement | null,
+  isLoading: boolean,
+): void {
+  if (!button) {
+    return;
+  }
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Rescanning…" : "Rescan All";
+}
+
+function setRescanStatus(
+  element: HTMLElement | null,
+  message: string,
+  variant: "info" | "success" | "error",
+): void {
+  if (!element) {
+    return;
+  }
+  element.textContent = message;
+  element.classList.remove("empty-state", "error-state", "success-state");
+  if (variant === "success") {
+    element.classList.add("success-state");
+  } else if (variant === "error") {
+    element.classList.add("error-state");
+  } else {
+    element.classList.add("empty-state");
+  }
 }
 
 function renderHostList(hosts: HostInfo[], container: HTMLElement): void {
@@ -338,6 +426,9 @@ function initAdminPage(): void {
   const hostsContainer = document.querySelector<HTMLElement>("#hosts-container");
   const hostsRefreshButton =
     document.querySelector<HTMLButtonElement>("#hosts-refresh");
+  const hostsRescanButton =
+    document.querySelector<HTMLButtonElement>("#hosts-rescan");
+  const rescanStatus = document.querySelector<HTMLElement>("#rescan-status");
 
   if (!form || !input || !button || !status) {
     return;
@@ -360,6 +451,41 @@ function initAdminPage(): void {
       setHostsMessage(hostsContainer, message, "error");
     } finally {
       setHostsLoading(hostsRefreshButton, false);
+    }
+  };
+
+  const handleRescan = async () => {
+    setRescanLoading(hostsRescanButton, true);
+    setRescanStatus(rescanStatus, "Scheduling rescan…", "info");
+
+    try {
+      const result = await triggerRescan();
+      const skipped = Math.max(result.attempted - result.enqueued, 0);
+      let message: string;
+      let variant: "info" | "success";
+
+      if (result.attempted === 0) {
+        message = "No hosts available for rescan.";
+        variant = "info";
+      } else if (result.enqueued === 0) {
+        message = "All hosts are already queued for crawling.";
+        variant = "info";
+      } else {
+        message = `Queued ${result.enqueued} of ${result.attempted} ${result.attempted === 1 ? "host" : "hosts"} for crawling${skipped > 0 ? ` (${skipped} already queued).` : "."}`;
+        variant = "success";
+      }
+
+      setRescanStatus(rescanStatus, message, variant);
+
+      if (hostsContainer) {
+        await loadHosts();
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to schedule rescan.";
+      setRescanStatus(rescanStatus, message, "error");
+    } finally {
+      setRescanLoading(hostsRescanButton, false);
     }
   };
 
@@ -387,11 +513,10 @@ function initAdminPage(): void {
 
     try {
       const result = await enqueueUrl(url);
-      setSeedStatus(
-        status,
-        `Enqueued ${result.url} onto queue ${result.queue}.`,
-        "success",
-      );
+      const message = result.alreadyQueued
+        ? `${result.url} is already scheduled on queue ${result.queue}.`
+        : `Enqueued ${result.url} onto queue ${result.queue}.`;
+      setSeedStatus(status, message, result.alreadyQueued ? "info" : "success");
       form.reset();
       input.focus();
       if (hostsContainer) {
@@ -415,8 +540,22 @@ function initAdminPage(): void {
     });
   }
 
+  if (hostsRescanButton) {
+    hostsRescanButton.addEventListener("click", () => {
+      void handleRescan();
+    });
+  }
+
   if (hostsContainer) {
     void loadHosts();
+  }
+
+  if (rescanStatus) {
+    setRescanStatus(
+      rescanStatus,
+      "Trigger a rescan to requeue all known hosts.",
+      "info",
+    );
   }
 }
 
