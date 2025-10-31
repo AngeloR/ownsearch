@@ -1,4 +1,4 @@
-import { CheerioCrawler } from "crawlee";
+import { CheerioCrawler, sleep } from "crawlee";
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import { Redis as RedisClient } from "ioredis";
@@ -130,7 +130,7 @@ function createCrawler(
 
       const delay = randomDelay();
       log.debug(`Sleeping ${delay}ms before next request`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await sleep(delay);
     },
     failedRequestHandler({ request, log }) {
       log.error(`Request ${request.url} failed too many times.`);
