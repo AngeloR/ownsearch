@@ -277,13 +277,13 @@ async function runLoop(initialUrl: string | undefined): Promise<void> {
         console.info(`Starting crawl for ${parsedSeed.href}`);
         await crawler.run([parsedSeed.href]);
         console.info(`Completed crawl for ${parsedSeed.href}`);
-        const requestQueue = await crawler.getRequestQueue();
-        await requestQueue.drop();
-        console.info("Cleared request queue storage after crawl.");
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Crawler error for ${urlToCrawl}: ${message}`);
       }
+      const requestQueue = await crawler.getRequestQueue();
+      await requestQueue.drop();
+      console.info("Cleared request queue storage after crawl.");
     }
   } finally {
     await redis.quit();
