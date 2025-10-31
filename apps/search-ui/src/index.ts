@@ -354,6 +354,66 @@ function setRescanStatus(
   }
 }
 
+function setHostRecrawlLoading(
+  button: HTMLButtonElement,
+  isLoading: boolean,
+): void {
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Recrawling…" : "Recrawl";
+}
+
+function buildSeedUrl(hostname: string): string {
+  const trimmed = hostname.trim();
+  if (!trimmed) {
+    throw new Error("Missing hostname.");
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
+
+async function handleHostRecrawl(
+  hostname: string,
+  button: HTMLButtonElement,
+): Promise<void> {
+  const rescanStatus =
+    document.querySelector<HTMLElement>("#rescan-status") ?? null;
+  const targetUrl = buildSeedUrl(hostname);
+
+  setHostRecrawlLoading(button, true);
+  if (rescanStatus) {
+    setRescanStatus(
+      rescanStatus,
+      `Scheduling recrawl for ${hostname}…`,
+      "info",
+    );
+  }
+
+  try {
+    const result = await enqueueUrl(targetUrl);
+    const message = result.alreadyQueued
+      ? `${hostname} is already scheduled on queue ${result.queue}.`
+      : `Queued ${hostname} for crawling via ${result.queue}.`;
+    const variant: "info" | "success" = result.alreadyQueued ? "info" : "success";
+    if (rescanStatus) {
+      setRescanStatus(rescanStatus, message, variant);
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : `Failed to enqueue ${hostname}.`;
+    if (rescanStatus) {
+      setRescanStatus(rescanStatus, message, "error");
+    }
+  } finally {
+    setHostRecrawlLoading(button, false);
+  }
+}
+
 function renderHostList(hosts: HostInfo[], container: HTMLElement): void {
   container.innerHTML = "";
 
@@ -366,7 +426,26 @@ function renderHostList(hosts: HostInfo[], container: HTMLElement): void {
   for (const host of hosts) {
     const item = document.createElement("li");
     item.className = "host-item";
-    item.textContent = `${host.hostname} - ${formatLastCrawled(host.lastCrawledAt)}`;
+    const info = document.createElement("span");
+    info.className = "host-info";
+    info.textContent = `${host.hostname} - ${formatLastCrawled(
+      host.lastCrawledAt,
+    )}`;
+
+    const actions = document.createElement("div");
+    actions.className = "host-actions";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ghost-button host-recrawl";
+    button.textContent = "Recrawl";
+    button.addEventListener("click", () => {
+      void handleHostRecrawl(host.hostname, button);
+    });
+
+    actions.appendChild(button);
+    item.appendChild(info);
+    item.appendChild(actions);
     list.appendChild(item);
   }
 
