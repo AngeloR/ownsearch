@@ -94,6 +94,15 @@ docker compose up -d --force-recreate crawler
 
 The crawler drops its persistent Crawlee request queue after each run so future crawls can revisit the same URLs.
 
+### HTTP caching
+
+During each crawl the worker stores `ETag`, `Last-Modified`, and `Cache-Control`
+headers for every successfully fetched URL in Redis (prefix `crawler:cache` by default).
+These values are used to send conditional requests (`If-None-Match`, `If-Modified-Since`)
+on subsequent runs. When a site responds with `304 Not Modified` the crawler skips
+processing, reducing bandwidth and avoiding unnecessary writes. Override the cache
+key prefix with `REDIS_CACHE_PREFIX` if you need to isolate environments.
+
 ## Architecture Notes
 
 - Only same-domain links are enqueued (`strategy: "same-domain"`). Adjust the crawler

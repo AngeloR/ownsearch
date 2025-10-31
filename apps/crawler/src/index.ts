@@ -7,6 +7,7 @@ import process from "node:process";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const REDIS_QUEUE_KEY = process.env.REDIS_QUEUE_KEY ?? "crawler:queue";
 const REDIS_DOC_PREFIX = process.env.REDIS_DOC_PREFIX ?? "crawler:doc";
+const REDIS_CACHE_PREFIX = process.env.REDIS_CACHE_PREFIX ?? "crawler:cache";
 const REDIS_SEED_QUEUE = process.env.REDIS_SEED_QUEUE ?? "crawler:seeds";
 const POLL_INTERVAL_RAW = Number.parseInt(
   process.env.SEED_POLL_INTERVAL_MS ?? "10000",
@@ -44,6 +45,10 @@ function buildRedisKey(targetUrl: string, index: number): string {
   return `${REDIS_DOC_PREFIX}:${prefix}`;
 }
 
+function buildCacheKey(targetUrl: string): string {
+  return `${REDIS_CACHE_PREFIX}:${new URL(targetUrl).href}`;
+}
+
 type ArticleRecord = {
   url: string;
   title: string;
@@ -79,7 +84,55 @@ function createCrawler(
   return new CheerioCrawler({
     maxRequestsPerCrawl: MAX_REQUESTS_PER_CRAWL,
     requestHandlerTimeoutSecs: Math.max(effectiveMax / 1000 + 30, 60),
-    async requestHandler({ request, body, enqueueLinks, log }) {
+    preNavigationHooks: [
+      async ({ request, log }) => {
+        try {
+          const cacheKey = buildCacheKey(request.url);
+          const [etag, lastModified] = await redis.hmget(
+            cacheKey,
+            "etag",
+            "lastModified",
+          );
+          const headers: Record<string, string> = {};
+          const existing = request.headers as Record<
+            string,
+            string | string[] | undefined
+          > | null;
+          if (existing) {
+            for (const [key, value] of Object.entries(existing)) {
+              if (typeof value === "string") {
+                headers[key] = value;
+              } else if (Array.isArray(value)) {
+                headers[key] = value.join(", ");
+              }
+            }
+          }
+
+          if (etag) {
+            headers["If-None-Match"] = etag;
+          }
+          if (lastModified) {
+            headers["If-Modified-Since"] = lastModified;
+          }
+
+          request.headers = headers;
+        } catch (error) {
+          log.debug(
+            "Failed to attach conditional headers; proceeding without cache hints.",
+            { url: request.url, err: error },
+          );
+        }
+      },
+    ],
+    async requestHandler({ request, body, enqueueLinks, log, response }) {
+      const statusCode = response?.statusCode ?? response?.status ?? 0;
+      if (statusCode === 304) {
+        log.info(
+          `Content not modified for ${request.url}, skipping processing.`,
+        );
+        return;
+      }
+
       if (!body) {
         log.warning(`No body returned for ${request.url}, skipping.`);
         return;
@@ -112,6 +165,44 @@ function createCrawler(
         await redis.set(redisKey, JSON.stringify(record));
         await redis.rpush(REDIS_QUEUE_KEY, redisKey);
         log.info(`Stored parsed content under key ${redisKey}`);
+      }
+
+      try {
+        const cacheKey = buildCacheKey(request.loadedUrl ?? request.url);
+        const headers = response?.headers ?? {};
+        const etagHeader = headers["etag"] ?? headers["ETag"];
+        const lastModifiedHeader =
+          headers["last-modified"] ?? headers["Last-Modified"];
+        const cacheControlHeader =
+          headers["cache-control"] ?? headers["Cache-Control"];
+
+        const payload: Record<string, string> = {};
+        if (typeof etagHeader === "string" && etagHeader.trim()) {
+          payload.etag = etagHeader.trim();
+        }
+        if (
+          typeof lastModifiedHeader === "string" &&
+          lastModifiedHeader.trim()
+        ) {
+          payload.lastModified = lastModifiedHeader.trim();
+        }
+        if (
+          typeof cacheControlHeader === "string" &&
+          cacheControlHeader.trim()
+        ) {
+          payload.cacheControl = cacheControlHeader.trim();
+        }
+        if (Object.keys(payload).length > 0) {
+          payload.lastFetchedAt = new Date().toISOString();
+          await redis.hset(cacheKey, payload);
+        } else {
+          await redis.del(cacheKey);
+        }
+      } catch (error) {
+        log.debug("Failed to persist cache metadata.", {
+          url: request.url,
+          err: error,
+        });
       }
 
       await enqueueLinks({
