@@ -4,6 +4,8 @@ services:
     restart: unless-stopped
     ports:
       - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - .data/redis:/data
     networks:
       - data
     healthcheck:
@@ -22,13 +24,16 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
     ports:
       - "${PGVECTOR_HOST_PORT:-5431}:5432"
+    volumes:
+      - .data/pgvector:/var/lib/postgresql/data
     networks:
       - data
     healthcheck:
-      test: [
-        "CMD-SHELL",
-        "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"
-      ]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -117,3 +122,7 @@ services:
 networks:
   data:
     driver: bridge
+
+volumes:
+  redis-data:
+  pgvector-data:
